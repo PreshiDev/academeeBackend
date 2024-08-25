@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin  # Import UserAdmin class from Django
 
-from .models import CustomUser, NewsHeadline, SchoolCalendar, ChatMessage, Notification, Announcement  # Import your User model
+from .models import CustomUser, NewsHeadline, SchoolCalendar, ChatMessage, Notification, Announcement, VideoComment  # Import your User model
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -27,3 +27,4 @@ admin.site.register(SchoolCalendar)
 admin.site.register(ChatMessage)
 admin.site.register(Notification)
 admin.site.register(Announcement)
+admin.site.register(VideoComment)

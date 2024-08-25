@@ -35,9 +35,13 @@ from .views import (
     CustomTokenRefreshView,
     TermClassChoicesView,
     ExamTermClassChoicesView,
+    SchoolActivityChoicesView,
     AnnouncementListView, 
     AnnouncementCreateView,
-    get_counts
+    get_counts,
+    SchoolPoliciesView,
+    GraduationView,
+    AvailableYearsView,
   )
 
 urlpatterns = [
@@ -58,6 +62,7 @@ urlpatterns = [
   path('api/lessonnote/', LessonNoteView.as_view(), name='lesson-note'),
   path('api/examquestion/', ExamQuestionView.as_view(), name='exam-question'),
   path('api/examtimetable/', ExamTimetableView.as_view(), name='exam-timetable'),
+  path('api/examtimetable/years/', AvailableYearsView.as_view(), name='available-years'),
   path('api/classnote/', ClassNoteView.as_view(), name='class-note'),
   path('api/reportcomment/', ReportCommentView.as_view(), name='report-comment'),
   path('api/assemblytopic/', AssemblyTopicView.as_view(), name='assembly-topic'),
@@ -68,12 +73,15 @@ urlpatterns = [
   path('api/chat/<int:parent_id>/reply/', ChatReplyCreateAPIView.as_view(), name='chat-reply-create'),
   path('api/chat/<int:parent_id>/replies/', ChatMessageReplyListAPIView.as_view(), name='chat-reply-list'),
   path('api/comments/', VideoCommentListCreateView.as_view(), name='video-comment-list-create'),
-  path('api/subscribe/<int:pk>/', SubscribeView.as_view(), name='subscribe'),
+  path('api/subscribe/', SubscribeView.as_view(), name='subscribe'),
   path('api/notifications/', NotificationListView.as_view(), name='notification-list'),
-  path('api/notifications/reset-count/', ResetNotificationCountView.as_view(), name='reset-notification-count'),
+  path('api/notifications/reset-count/<int:id>', ResetNotificationCountView.as_view(), name='reset-notification-count'),
   path('api/lessonchoices/', TermClassChoicesView.as_view(), name='term-class-choices'),
   path('api/questionchoices/', ExamTermClassChoicesView.as_view(), name='question-term-class-choices'),
+  path('api/activitychoices/', SchoolActivityChoicesView.as_view(), name='school-activity-choices'),
   path('api/announcements/', AnnouncementListView.as_view(), name='announcement-list'),
   path('api/announcements/create/', AnnouncementCreateView.as_view(), name='announcement-create'),
+  path('api/schoolpolicies/', SchoolPoliciesView.as_view(), name='school-policies'),
+  path('api/graduationday/', GraduationView.as_view(), name='graduation-day'),
   path('api/get-counts/', get_counts, name='get-counts'),
 ]

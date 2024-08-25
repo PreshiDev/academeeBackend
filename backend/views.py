@@ -10,8 +10,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt  # Only use for this specific view
 from django.middleware.csrf import get_token
-from .serializers import UserSerializer, ReportSheetSerializer, WorkBookSerializer, SchoolActivitiesSerializer, AssemblyTopicSerializer, ClassNoteSerializer, ReportCommentSerializer, SchemeWorkSerializer, LessonNoteSerializer, ExamQuestionSerializer, ExamTimetableSerializer, LoginSerializer, NotificationSerializer, NewsHeadlineSerializer, SchoolCalendarSerializer, ChatMessageSerializer, VideoCommentSerializer, ChatMessageReplySerializer, UserDetailSerializer, UserUpdateSerializer, CustomTokenObtainPairSerializer, AnnouncementSerializer # Assuming you have a UserSerializer class
-from .models import CustomToken, SchoolCalendar, ChatMessage, VideoComment, CustomUser, Notification, SchemeWork, LessonNote, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement
+from .serializers import UserSerializer, ReportSheetSerializer, WorkBookSerializer, SchoolActivitiesSerializer, AssemblyTopicSerializer, ClassNoteSerializer, ReportCommentSerializer, SchemeWorkSerializer, LessonNoteSerializer, ExamQuestionSerializer, ExamTimetableSerializer, LoginSerializer, NotificationSerializer, NewsHeadlineSerializer, SchoolCalendarSerializer, ChatMessageSerializer, VideoCommentSerializer, ChatMessageReplySerializer, UserDetailSerializer, UserUpdateSerializer, CustomTokenObtainPairSerializer, AnnouncementSerializer, SchoolPoliciesSerializer, GraduationSerializer # Assuming you have a UserSerializer class
+from .models import CustomToken, SchoolCalendar, ChatMessage, VideoComment, CustomUser, Notification, SchemeWork, LessonNote, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement, SchoolPolicies, Graduation
 from rest_framework import generics
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -32,6 +32,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.core.mail import send_mail
+from paystackapi.transaction import Transaction
+from django.conf import settings
+from datetime import date
 #from .utils import get_auth_for_user  # Import your custom function
 
 
@@ -113,13 +117,30 @@ class NotificationListView(generics.ListAPIView):
 class NotificationCreateView(generics.CreateAPIView):
     serializer_class = NotificationSerializer
 
+    def perform_create(self, serializer):
+        notification = serializer.save()
+
+        # Get all users
+        users = CustomUser.objects.all()
+
+        # Send an email to each user
+        for user in users:
+            if user.email:  # Ensure the user has an email address
+                send_mail(
+                    subject=f"New Notification: {notification.title}",
+                    message=notification.message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+
 class ResetNotificationCountView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request):
-        user = request.user
-        notifications = Notification.objects.filter(user=user)
+    def post(self, request, *args, **kwarg):
+        id = self.kwargs.get('id')
+        notifications = Notification.objects.filter(id=id)
         notifications.update(is_read=True)  # Assuming you have an `is_read` field to track read status
         return Response({'status': 'notification count reset'})
 
@@ -253,12 +274,27 @@ class ExamTermClassChoicesView(APIView):
         term_choices = [{'value': choice[0], 'label': choice[1]} for choice in ExamQuestion.TERM_CHOICES]
         class_choices = [{'value': choice[0], 'label': choice[1]} for choice in ExamQuestion.CLASS_CHOICES]
         return Response({'term_choices': term_choices, 'class_choices': class_choices})
-    
-class ExamTimetableView(APIView):
-    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
+
+
+class AvailableYearsView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        examtimetable = ExamTimetable.objects.all()
+        current_year = date.today().year
+        # Generate years dynamically from the current year going back a few years
+        years = list(range(current_year - 10, current_year + 1))  # Adjust range as needed
+        return Response({'years': years})
+
+
+class ExamTimetableView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        year = request.query_params.get('year')
+        if year:
+            examtimetable = ExamTimetable.objects.filter(year=year)
+        else:
+            examtimetable = ExamTimetable.objects.all()
         serializer = ExamTimetableSerializer(examtimetable, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -266,14 +302,15 @@ class ExamTimetableView(APIView):
         serializer = ExamTimetableSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             timetable = serializer.save()
-            # Create a notification
             Notification.objects.create(
                 title="New Exam Timetable",
                 message=f"A new exam timetable has been uploaded: {timetable.title}",
-                user=request.user  # Adjust this according to your user model and authentication
+                user=request.user
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
     
 class ClassNoteView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
@@ -338,6 +375,12 @@ class AssemblyTopicView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class SchoolActivityChoicesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        activity_choices = [{'value': choice[0], 'label': choice[1]} for choice in SchoolActivities.ACTIVITIES]
+        return Response({'activity_choices': activity_choices})
 
 class SchoolActivitiesView(APIView):
     permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
@@ -481,6 +524,7 @@ class ChatMessageReplyListAPIView(generics.ListAPIView):
 
 class VideoCommentListCreateView(generics.ListCreateAPIView):
     serializer_class = VideoCommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]  # Allow read-only access to unauthenticated users
 
     def get_queryset(self):
         video_id = self.request.query_params.get('video_id')
@@ -489,7 +533,13 @@ class VideoCommentListCreateView(generics.ListCreateAPIView):
         return VideoComment.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save()
+        serializer.save(user=self.request.user)  # Save the user who made the comment
+
+    def create(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=403)
+        return super().create(request, *args, **kwargs)
+
 
 # class CustomTokenObtainPairView(TokenObtainPairView):
 #     permission_classes = (AllowAny,)
@@ -601,34 +651,98 @@ class UserViewSet(generics.RetrieveUpdateAPIView):
     #     print(f"Serializer errors: {serializer.errors}")
     #     return Response(serializer.errors, status=400)
 
-
 class SubscribeView(generics.UpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
-    def update(self, request, *args, **kwargs):
-        user = self.request.user
-        plan = request.data.get('subscription_plan')
-        
-        if plan == 'monthly':
-            end_date = timezone.now() + timedelta(days=30)
-        elif plan == 'quarterly':
-            end_date = timezone.now() + timedelta(days=90)
-        elif plan == 'annually':
-            end_date = timezone.now() + timedelta(days=365)
-        else:
-            return Response({"detail": "Invalid subscription plan"}, status=status.HTTP_400_BAD_REQUEST)
+    def initialize_payment(self, user, plan):
+        plan_costs = {
+            'monthly': 1000,  # Naira
+            'quarterly': 2500,  # Naira
+            'annually': 9000,  # Naira
+        }
 
+        if plan not in plan_costs:
+            return None, {"detail": "Invalid subscription plan"}, status.HTTP_400_BAD_REQUEST
+
+        # Initialize Paystack transaction
+        paystack_secret_key = settings.PAYSTACK_SECRET_KEY
+        transaction = Transaction(authorization_key=paystack_secret_key)
+
+        response = transaction.initialize(
+            reference=f"{user.id}_{timezone.now().timestamp()}",
+            email=user.email,
+            amount=plan_costs[plan] * 100  # Amount in kobo
+        )
+
+        if response['status']:
+            return response['data'], None, None
+        return None, {"detail": "Payment initialization failed"}, status.HTTP_400_BAD_REQUEST
+
+    def verify_payment(self, reference):
+        paystack_secret_key = settings.PAYSTACK_SECRET_KEY
+        transaction = Transaction(authorization_key=paystack_secret_key)
+
+        response = transaction.verify(reference)
+
+        if response['status']:
+            return response['data']
+        return None
+
+    def perform_update(self, user, plan):
+        plan_durations = {
+            'monthly': timedelta(days=30),
+            'quarterly': timedelta(days=90),
+            'annually': timedelta(days=365),
+        }
+
+        end_date = timezone.now() + plan_durations[plan]
         user.subscription_plan = plan
         user.subscription_start_date = timezone.now()
         user.subscription_end_date = end_date
         user.save()
 
-        # Send notification logic here
+    def update(self, request, *args, **kwargs):
+        user = self.request.user
+        plan = request.data.get('subscription_plan')
 
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
+        if not plan:
+            return Response({"detail": "Subscription plan is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if payment_reference is in request
+        payment_reference = request.data.get('payment_reference')
+
+        if payment_reference:
+            payment_data = self.verify_payment(payment_reference)
+
+            if not payment_data:
+                return Response({"detail": "Payment verification failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+            self.perform_update(user, plan)
+
+            # Create a notification
+            Notification.objects.create(
+                title="Subscription Successful",
+                message=f"You have successfully subscribed to the {plan} plan.",
+                user=user
+            )
+
+            serializer = self.get_serializer(user)
+            return Response(serializer.data)
+
+        # Initialize payment if no payment_reference
+        payment_data, error, status_code = self.initialize_payment(user, plan)
+        if error:
+            return Response(error, status=status_code)
+
+        return Response({
+            "payment_url": payment_data['authorization_url'],
+            "reference": payment_data['reference']
+        })
+    
+
+
 
 class AnnouncementListView(generics.ListAPIView):
     queryset = Announcement.objects.all().order_by('-created_at')
@@ -668,3 +782,45 @@ def get_counts(request):
         "announcement_count": Announcement.objects.count(),
     }
     return JsonResponse(counts)
+
+class SchoolPoliciesView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
+
+    def get(self, request):
+        classnote = SchoolPolicies.objects.all()
+        serializer = SchoolPoliciesSerializer(classnote, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = SchoolPoliciesSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            classnotes = serializer.save()
+            # Create a notification
+            Notification.objects.create(
+                title="New Class Note",
+                message=f"A new class note has been uploaded: {classnotes.title}",
+                user=request.user  # Adjust this according to your user model and authentication
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class GraduationView(APIView):
+    permission_classes = [IsAuthenticated]  # Ensure only authenticated users can access this view
+
+    def get(self, request):
+        classnote = Graduation.objects.all()
+        serializer = GraduationSerializer(classnote, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = GraduationSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            classnotes = serializer.save()
+            # Create a notification
+            Notification.objects.create(
+                title="New Class Note",
+                message=f"A new class note has been uploaded: {classnotes.title}",
+                user=request.user  # Adjust this according to your user model and authentication
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

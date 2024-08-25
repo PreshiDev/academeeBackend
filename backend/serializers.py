@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, NewsHeadline, SchoolCalendar, ChatMessage, VideoComment, Notification, LessonNote, SchemeWork, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement
+from .models import CustomUser, NewsHeadline, SchoolCalendar, ChatMessage, VideoComment, Notification, LessonNote, SchemeWork, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement, SchoolPolicies, Graduation
 from django.contrib.auth import authenticate
 import logging
 from django.contrib.auth import get_user_model
@@ -109,9 +109,17 @@ class ChatMessageReplySerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'text', 'created_at']
 
 class VideoCommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)  # or 'user.id' if you want to return the user id
+
     class Meta:
         model = VideoComment
-        fields = ['id', 'video_id', 'content', 'created_at']
+        fields = ['id', 'video_id', 'content', 'created_at', 'user']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        user = request.user
+        validated_data['user'] = user
+        return super().create(validated_data)
 
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
@@ -215,14 +223,14 @@ class ExamTimetableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExamTimetable
-        fields = ['id', 'title', 'pdf']
+        fields = ['id', 'title', 'pdf', 'year']  # Include year field
 
     def get_pdf(self, obj):
         request = self.context.get('request')
         if obj.pdf:
             return request.build_absolute_uri(obj.pdf.url)
         return None
-    
+
 
 class ClassNoteSerializer(serializers.ModelSerializer):
     pdf = serializers.FileField(required=False)  # Ensure the field can be omitted in requests
@@ -271,7 +279,7 @@ class SchoolActivitiesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchoolActivities
-        fields = ['id', 'title', 'pdf']
+        fields = ['id', 'activities', 'title', 'pdf']
 
     def get_pdf(self, obj):
         request = self.context.get('request')
@@ -311,3 +319,29 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Announcement
         fields = ['id', 'title', 'message', 'created_at',]
+
+class SchoolPoliciesSerializer(serializers.ModelSerializer):
+    pdf = serializers.FileField(required=False)  # Ensure the field can be omitted in requests
+
+    class Meta:
+        model = SchoolPolicies
+        fields = ['id', 'title', 'pdf']
+
+    def get_pdf(self, obj):
+        request = self.context.get('request')
+        if obj.pdf:
+            return request.build_absolute_uri(obj.pdf.url)
+        return None
+    
+class GraduationSerializer(serializers.ModelSerializer):
+    pdf = serializers.FileField(required=False)  # Ensure the field can be omitted in requests
+
+    class Meta:
+        model = Graduation
+        fields = ['id', 'title', 'pdf']
+
+    def get_pdf(self, obj):
+        request = self.context.get('request')
+        if obj.pdf:
+            return request.build_absolute_uri(obj.pdf.url)
+        return None

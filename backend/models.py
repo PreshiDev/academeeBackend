@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.conf import settings
 import uuid
 import secrets
+from datetime import date
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, username, password=None, **extra_fields):
@@ -110,6 +111,7 @@ class ChatMessage(models.Model):
 
 
 class VideoComment(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, default=CustomUser.objects.first().id)
     video_id = models.CharField(max_length=100)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -139,6 +141,7 @@ class LessonNote(models.Model):
     ]
 
     CLASS_CHOICES = [
+        ('Pre-Nursery', 'Pre-Nursery'),
         ('Nursery', 'Nursery'),
         ('Primary 1', 'Primary 1'),
         ('Primary 2', 'Primary 2'),
@@ -170,6 +173,7 @@ class ExamQuestion(models.Model):
     ]
 
     CLASS_CHOICES = [
+        ('Pre-Nursery', 'Pre-Nursery'),
         ('Nursery', 'Nursery'),
         ('Primary 1', 'Primary 1'),
         ('Primary 2', 'Primary 2'),
@@ -196,9 +200,10 @@ class ExamQuestion(models.Model):
 class ExamTimetable(models.Model):
     title = models.CharField(max_length=255)
     pdf = models.FileField(upload_to='exam_timetable/')
+    year = models.PositiveIntegerField(default=date.today().year)
 
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.year})"
     
 class ClassNote(models.Model):
     title = models.CharField(max_length=255)
@@ -222,6 +227,13 @@ class AssemblyTopic(models.Model):
         return self.title
     
 class SchoolActivities(models.Model):
+    ACTIVITIES = [
+        ('Events', 'Events'),
+        ('Letters', 'Letters'),
+        ('Speeches', 'Speeches'),
+        # Add more classes as needed
+    ]
+    activities = models.CharField(max_length=10, blank=True, null=True, choices=ACTIVITIES)
     title = models.CharField(max_length=255)
     pdf = models.FileField(upload_to='school_activities/')
 
@@ -246,3 +258,17 @@ class Announcement(models.Model):
     title = models.CharField(max_length=255)
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+class SchoolPolicies(models.Model):
+    title = models.CharField(max_length=255)
+    pdf = models.FileField(upload_to='class_note/')
+
+    def __str__(self):
+        return self.title
+    
+class Graduation(models.Model):
+    title = models.CharField(max_length=255)
+    pdf = models.FileField(upload_to='class_note/')
+
+    def __str__(self):
+        return self.title
