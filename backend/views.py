@@ -5,13 +5,14 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
+from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt  # Only use for this specific view
 from django.middleware.csrf import get_token
-from .serializers import UserSerializer, ReportSheetSerializer, WorkBookSerializer, SchoolActivitiesSerializer, AssemblyTopicSerializer, ClassNoteSerializer, ReportCommentSerializer, SchemeWorkSerializer, LessonNoteSerializer, ExamQuestionSerializer, ExamTimetableSerializer, LoginSerializer, NotificationSerializer, NewsHeadlineSerializer, SchoolCalendarSerializer, ChatMessageSerializer, VideoCommentSerializer, ChatMessageReplySerializer, UserDetailSerializer, UserUpdateSerializer, CustomTokenObtainPairSerializer, AnnouncementSerializer, SchoolPoliciesSerializer, GraduationSerializer # Assuming you have a UserSerializer class
-from .models import CustomToken, SchoolCalendar, ChatMessage, VideoComment, CustomUser, Notification, SchemeWork, LessonNote, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement, SchoolPolicies, Graduation
+from .serializers import UserSerializer, ReportSheetSerializer, WorkBookSerializer, SchoolActivitiesSerializer, AssemblyTopicSerializer, ClassNoteSerializer, ReportCommentSerializer, SchemeWorkSerializer, LessonNoteSerializer, ExamQuestionSerializer, ExamTimetableSerializer, LoginSerializer, NotificationSerializer, NewsHeadlineSerializer, SchoolCalendarSerializer, ChatMessageSerializer, VideoCommentSerializer, ChatMessageReplySerializer, UserDetailSerializer, UserUpdateSerializer, CustomTokenObtainPairSerializer, AnnouncementSerializer, SchoolPoliciesSerializer, GraduationSerializer, NewsCommentSerializer # Assuming you have a UserSerializer class
+from .models import CustomToken, SchoolCalendar, ChatMessage, VideoComment, CustomUser, Notification, SchemeWork, LessonNote, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement, SchoolPolicies, Graduation, NewsComment
 from rest_framework import generics
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -36,6 +37,8 @@ from django.core.mail import send_mail
 from paystackapi.transaction import Transaction
 from django.conf import settings
 from datetime import date
+# from google.oauth2 import service_account
+# from googleapiclient.discovery import build
 #from .utils import get_auth_for_user  # Import your custom function
 
 
@@ -541,6 +544,29 @@ class VideoCommentListCreateView(generics.ListCreateAPIView):
         return super().create(request, *args, **kwargs)
 
 
+class NewsCommentListCreateView(generics.ListCreateAPIView):
+    serializer_class = NewsCommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        news_id = self.request.query_params.get('news_id')
+        if news_id:
+            return NewsComment.objects.filter(news__id=news_id).order_by('-created_at')
+        return NewsComment.objects.none()
+
+    def perform_create(self, serializer):
+        # Save the comment with the current user and the associated news article
+        news_id = self.request.data.get('news_id')
+        if news_id:
+            news = NewsHeadline.objects.get(id=news_id)
+            serializer.save(user=self.request.user, news=news)
+        else:
+            raise serializers.ValidationError("News ID is required.")
+
+    # No need for a custom create method, as the permission class handles authentication
+
+
+
 # class CustomTokenObtainPairView(TokenObtainPairView):
 #     permission_classes = (AllowAny,)
 
@@ -741,6 +767,78 @@ class SubscribeView(generics.UpdateAPIView):
             "reference": payment_data['reference']
         })
     
+
+# class SubscribeView(generics.UpdateAPIView):
+#     queryset = CustomUser.objects.all()
+#     serializer_class = UserSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def verify_purchase(self, purchase_token):
+#         # Google Play API credentials and settings
+#         SCOPES = ['https://www.googleapis.com/auth/androidpublisher']
+#         SERVICE_ACCOUNT_FILE = 'path/to/your/service-account-file.json'
+
+#         credentials = service_account.Credentials.from_service_account_file(
+#             SERVICE_ACCOUNT_FILE, scopes=SCOPES
+#         )
+#         service = build('androidpublisher', 'v3', credentials=credentials)
+
+#         try:
+#             # Replace 'your.package.name' with your app's package name
+#             purchase = service.purchases().subscriptions().get(
+#                 packageName='your.package.name',
+#                 subscriptionId='your.subscription.id',
+#                 token=purchase_token
+#             ).execute()
+
+#             if purchase.get('paymentState') == 1:
+#                 return purchase
+#             return None
+#         except Exception as e:
+#             print(f"Error verifying purchase: {e}")
+#             return None
+
+#     def perform_update(self, user, plan):
+#         plan_durations = {
+#             'monthly': timedelta(days=30),
+#             'quarterly': timedelta(days=90),
+#             'annually': timedelta(days=365),
+#         }
+
+#         end_date = timezone.now() + plan_durations[plan]
+#         user.subscription_plan = plan
+#         user.subscription_start_date = timezone.now()
+#         user.subscription_end_date = end_date
+#         user.save()
+
+#     def update(self, request, *args, **kwargs):
+#         user = self.request.user
+#         plan = request.data.get('subscription_plan')
+#         purchase_token = request.data.get('purchase_token')
+
+#         if not plan:
+#             return Response({"detail": "Subscription plan is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         if purchase_token:
+#             purchase_data = self.verify_purchase(purchase_token)
+
+#             if not purchase_data:
+#                 return Response({"detail": "Purchase verification failed"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             self.perform_update(user, plan)
+
+#             # Create a notification
+#             Notification.objects.create(
+#                 title="Subscription Successful",
+#                 message=f"You have successfully subscribed to the {plan} plan.",
+#                 user=user
+#             )
+
+#             serializer = self.get_serializer(user)
+#             return Response(serializer.data)
+
+#         # You could also initialize subscription on the frontend if needed
+#         return Response({"detail": "Purchase token is required for verification"})
 
 
 

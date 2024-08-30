@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, NewsHeadline, SchoolCalendar, ChatMessage, VideoComment, Notification, LessonNote, SchemeWork, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement, SchoolPolicies, Graduation
+from .models import CustomUser, NewsHeadline, SchoolCalendar, ChatMessage, VideoComment, Notification, LessonNote, SchemeWork, ExamQuestion, ExamTimetable, ClassNote, ReportComment, AssemblyTopic, SchoolActivities, WorkBooks, ReportSheet, Announcement, SchoolPolicies, Graduation, NewsComment
 from django.contrib.auth import authenticate
 import logging
 from django.contrib.auth import get_user_model
@@ -15,7 +15,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ('username', 'first_name', 'last_name', 'email', 'profile_picture', 'password')
+        fields = ('username', 'first_name', 'last_name', 'email', 'phone_number', 'profile_picture', 'password')
         extra_kwargs = {
             'password': {'write_only': True},
         }
@@ -120,6 +120,21 @@ class VideoCommentSerializer(serializers.ModelSerializer):
         user = request.user
         validated_data['user'] = user
         return super().create(validated_data)
+
+
+class NewsCommentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)  # Assuming you have a UserSerializer to represent the user
+
+    class Meta:
+        model = NewsComment
+        fields = ['id', 'news', 'content', 'created_at', 'user']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        user = request.user
+        validated_data['user'] = user
+        return super().create(validated_data)
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:

@@ -42,6 +42,7 @@ from .views import (
     SchoolPoliciesView,
     GraduationView,
     AvailableYearsView,
+    NewsCommentListCreateView
   )
 
 urlpatterns = [
@@ -73,6 +74,7 @@ urlpatterns = [
   path('api/chat/<int:parent_id>/reply/', ChatReplyCreateAPIView.as_view(), name='chat-reply-create'),
   path('api/chat/<int:parent_id>/replies/', ChatMessageReplyListAPIView.as_view(), name='chat-reply-list'),
   path('api/comments/', VideoCommentListCreateView.as_view(), name='video-comment-list-create'),
+  path('api/new_comments/', NewsCommentListCreateView.as_view(), name='news-comment-list-create'),
   path('api/subscribe/', SubscribeView.as_view(), name='subscribe'),
   path('api/notifications/', NotificationListView.as_view(), name='notification-list'),
   path('api/notifications/reset-count/<int:id>', ResetNotificationCountView.as_view(), name='reset-notification-count'),

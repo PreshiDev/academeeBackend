@@ -31,11 +31,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True, null=True, blank=True)
     first_name = models.CharField(max_length=255, blank=True)
     last_name = models.CharField(max_length=255, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
+
     
     SUBSCRIPTION_CHOICES = [
         ('none', 'None'),
@@ -109,15 +111,27 @@ class ChatMessage(models.Model):
     def __str__(self):
         return self.text or 'Image Message'
 
+def get_default_user():
+    user = CustomUser.objects.first()
+    return user.id if user else None
 
 class VideoComment(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, default=CustomUser.objects.first().id)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, default=get_default_user)
     video_id = models.CharField(max_length=100)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f'Comment on {self.video_id} by {self.id}'
+    
+class NewsComment(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, default=get_default_user)
+    news = models.ForeignKey('NewsHeadline', on_delete=models.CASCADE, related_name='comments', null=False, default=1) # ForeignKey to NewsHeadline
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Comment on {self.news.title} by {self.user.username}'
 
 class Notification(models.Model):
     title = models.CharField(max_length=255)
@@ -186,6 +200,12 @@ class ExamQuestion(models.Model):
         ('Ss 1', 'Ss 1'),
         ('Ss 2', 'Ss 2'),
         ('Ss 3', 'Ss 3'),
+        ('NCEE PAST QUESTION', 'NCEE PAST QUESTION'),
+        ('JAMB PAST QUESTION', 'JAMB PAST QUESTION'),
+        ('GCE PAST QUESTION', 'GCE PAST QUESTION'),
+        ('NECO PAST QUESTION', 'NECO PAST QUESTION'),
+        ('POST UTME PAST QUESTION', 'POST UTME PAST QUESTION'),
+        ('TRCN PAST QUESTION', 'TRCN PAST QUESTION'),
         # Add more classes as needed
     ]
 
