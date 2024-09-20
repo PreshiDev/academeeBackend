@@ -42,7 +42,8 @@ from .views import (
     SchoolPoliciesView,
     GraduationView,
     AvailableYearsView,
-    NewsCommentListCreateView
+    NewsCommentListCreateView,
+    policy,
   )
 
 urlpatterns = [
@@ -86,4 +87,5 @@ urlpatterns = [
   path('api/schoolpolicies/', SchoolPoliciesView.as_view(), name='school-policies'),
   path('api/graduationday/', GraduationView.as_view(), name='graduation-day'),
   path('api/get-counts/', get_counts, name='get-counts'),
+  path('policy/', policy, name='policy'),
 ]

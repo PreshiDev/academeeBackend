@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.contrib.auth import get_user_model
 from rest_framework import status, permissions, viewsets, exceptions
 from rest_framework.decorators import api_view, permission_classes
@@ -922,3 +923,7 @@ class GraduationView(APIView):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+def policy(request):
+    return render(request, 'policy.html')
